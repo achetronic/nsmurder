@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
+
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // GetKubernetesClient Return a Kubernetes client configured to connect from inside or outside the cluster
@@ -27,4 +31,20 @@ func GetKubernetesClient(connectionMode string, kubeconfigPath string) (*kuberne
 	// Construct the client
 	client, err = kubernetes.NewForConfig(config)
 	return client, err
+}
+
+// GetAllNamespaces get a list of all namespaces existing in the cluster
+func GetAllNamespaces(client *kubernetes.Clientset) (namespaces []string, err error) {
+
+	namespaceList, err := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+
+	if err != nil {
+		return namespaces, err
+	}
+
+	for _, value := range namespaceList.Items {
+		namespaces = append(namespaces, value.GetName())
+	}
+
+	return namespaces, err
 }

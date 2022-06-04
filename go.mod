@@ -1,6 +1,6 @@
 module nsmurder
 
-go 1.17
+go 1.18
 
 require k8s.io/client-go v0.24.1
 

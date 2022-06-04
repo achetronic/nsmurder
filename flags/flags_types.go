@@ -1,4 +1,4 @@
-package main
+package flags
 
 import "strings"
 
@@ -15,4 +15,13 @@ func (i *arrayFlags) String() string {
 func (i *arrayFlags) Set(value string) error {
 	*i = append(*i, value)
 	return nil
+}
+
+// Flags represents all the available command flags
+type FlagsSpec struct {
+	ConnectionMode *string    `json:"connection_mode"`
+	Kubeconfig     *string    `json:"kubeconfig"`
+	IncludeAll     *bool      `json:"include_all"`
+	Include        arrayFlags `json:"include"`
+	Ignore         arrayFlags `json:"ignore"`
 }
