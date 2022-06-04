@@ -74,21 +74,6 @@ func main() {
 
 	// Delete stuck namespace's resources
 
-	// Force delete stuck namespaces
+	// TODO: Implement a time to wait between processes to let Kubernetes to manage the situation
 
-	//// Update the Secrets time by time
-	//for {
-	//	// Build the Secret resources with the certificates content
-	//	secrets, err := BuildSecrets(SecretNames, TLSHosts)
-	//
-	//	// Use the Kubernetes client to synchronize the resources
-	//	log.Printf("Synchronizing the Secrets in the namespace: %s", *namespaceFlag)
-	//	err = SynchronizeSecrets(client, *namespaceFlag, secrets)
-	//	if err != nil {
-	//		log.Printf("Error synchronizing the Secrets: %s", err)
-	//	}
-	//
-	//	log.Printf("Next synchronization in %d seconds", SynchronizationScheduleSeconds)
-	//	time.Sleep(SynchronizationScheduleSeconds * time.Second)
-	//}
 }

@@ -2,7 +2,9 @@ package operations
 
 import (
 	"context"
+	"encoding/json"
 
+	meta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -10,9 +12,16 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
-// GetResources ---
+const (
+	StatusConditionTypeAvailable = "Available"
+)
+
+// Global references
+// Ref: https://caiorcferreira.github.io/post/the-kubernetes-dynamic-client/
 // Ref: https://pkg.go.dev/k8s.io/client-go@v0.24.1/dynamic
 // Ref: https://itnext.io/generically-working-with-kubernetes-resources-in-go-53bce678f887
+
+// GetResources ---
 func GetResources(ctx context.Context, client dynamic.Interface,
 	group string, version string, kind string, namespace string) (
 	[]unstructured.Unstructured, error) {
@@ -36,8 +45,6 @@ func GetResources(ctx context.Context, client dynamic.Interface,
 }
 
 // DeleteResources ---
-// Ref: https://pkg.go.dev/k8s.io/client-go@v0.24.1/dynamic
-// Ref: https://itnext.io/generically-working-with-kubernetes-resources-in-go-53bce678f887
 func DeleteResource(ctx context.Context, client dynamic.Interface,
 	group string, version string, kind string, name string, namespace string) error {
 
@@ -88,17 +95,29 @@ func DeleteNamespaces(ctx context.Context, client dynamic.Interface, namespaces 
 // GetOrphanApiServices get a list of all APIServices existing in the cluster
 func GetOrphanApiServices(ctx context.Context, client dynamic.Interface) (apiServices []string, err error) {
 
+	var currentStatus StatusSpec
+
+	// Get all the APIService resources
 	apiServiceList, err := GetResources(ctx, client, "apiregistration.k8s.io", "v1", "apiservices", "")
 
 	if err != nil {
 		return apiServices, err
 	}
 
+	// Add APIServices to the list when not available
 	for _, apiService := range apiServiceList {
-		// Check if the ApiService is orphan
 
-		// Append it to the list
-		apiServices = append(apiServices, apiService.GetName())
+		// Check if the ApiService is orphan
+		apiServiceJson, _ := json.Marshal(apiService.Object["status"])
+		err := json.Unmarshal(apiServiceJson, &currentStatus)
+		if err != nil {
+			return apiServices, err
+		}
+
+		// Append it to the list when orphaned
+		if meta.IsStatusConditionFalse(currentStatus.Conditions, StatusConditionTypeAvailable) {
+			apiServices = append(apiServices, apiService.GetName())
+		}
 	}
 
 	return apiServices, err
