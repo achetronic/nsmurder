@@ -3,12 +3,14 @@ package operations
 import (
 	"context"
 	"encoding/json"
+	"strings"
 
 	meta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 )
 
@@ -20,6 +22,7 @@ const (
 // Ref: https://caiorcferreira.github.io/post/the-kubernetes-dynamic-client/
 // Ref: https://pkg.go.dev/k8s.io/client-go@v0.24.1/dynamic
 // Ref: https://itnext.io/generically-working-with-kubernetes-resources-in-go-53bce678f887
+// Ref: https://pkg.go.dev/k8s.io/client-go/discovery#DiscoveryClient
 
 // GetResources ---
 func GetResources(ctx context.Context, client dynamic.Interface,
@@ -62,8 +65,8 @@ func DeleteResource(ctx context.Context, client dynamic.Interface,
 	return err
 }
 
-// GetAllNamespaces get a list of all namespaces existing in the cluster
-func GetAllNamespaces(ctx context.Context, client dynamic.Interface) (namespaces []string, err error) {
+// getNamespaces get a list of all namespaces existing in the cluster
+func getNamespaces(ctx context.Context, client dynamic.Interface) (namespaces []unstructured.Unstructured, err error) {
 
 	namespaceList, err := GetResources(ctx, client, "", "v1", "namespaces", "")
 
@@ -71,8 +74,42 @@ func GetAllNamespaces(ctx context.Context, client dynamic.Interface) (namespaces
 		return namespaces, err
 	}
 
+	return namespaceList, err
+}
+
+// GetNamespaces get a list of all namespaces existing in the cluster
+func GetNamespaces(ctx context.Context, client dynamic.Interface) (namespaces []string, err error) {
+
+	namespaceList, err := getNamespaces(ctx, client)
+
+	if err != nil {
+		return namespaces, err
+	}
+
 	for _, value := range namespaceList {
 		namespaces = append(namespaces, value.GetName())
+	}
+
+	return namespaces, err
+}
+
+// GetStuckNamespaces get a list of 'Terminating' namespaces
+func GetTerminatingNamespaces(ctx context.Context, client dynamic.Interface) (namespaces []string, err error) {
+
+	namespaceList, err := getNamespaces(ctx, client)
+
+	if err != nil {
+		return namespaces, err
+	}
+
+	// Add namespaces with deletion timestamp, which indicates deletion
+	for _, namespace := range namespaceList {
+
+		deletionTimestamp := namespace.GetDeletionTimestamp()
+
+		if !deletionTimestamp.IsZero() {
+			namespaces = append(namespaces, namespace.GetName())
+		}
 	}
 
 	return namespaces, err
@@ -121,4 +158,45 @@ func GetOrphanApiServices(ctx context.Context, client dynamic.Interface) (apiSer
 	}
 
 	return apiServices, err
+}
+
+//
+// GetNamespacedApiResources return a list with essential data about all namespaced resource types in the cluster
+func GetNamespacedApiResources(ctx context.Context, client *discovery.DiscoveryClient) (
+	namespacedApiResources []ExtendedGroupVersionKindSpec, err error) {
+
+	extendedApiResource := &ExtendedGroupVersionKindSpec{}
+
+	// Ask the API for all preferred namespaced resources
+	apiResourceLists, err := client.ServerPreferredNamespacedResources()
+	if err != nil {
+		return namespacedApiResources, err
+	}
+
+	// Store only useful information about retrieved resources
+	for _, apiResourceList := range apiResourceLists {
+
+		for _, apiResource := range apiResourceList.APIResources {
+
+			// Assume there is no Group but only Version
+			extendedApiResource.Group = ""
+			extendedApiResource.Version = apiResourceList.GroupVersion
+
+			// Separate Group and Version
+			groupVersion := strings.Split(apiResourceList.GroupVersion, "/")
+			if len(groupVersion) == 2 {
+				extendedApiResource.Group = groupVersion[0]
+				extendedApiResource.Version = groupVersion[1]
+			}
+
+			// Fill the rest of data about the resource
+			extendedApiResource.Kind = apiResource.Kind
+			extendedApiResource.Name = apiResource.Name
+			extendedApiResource.SingularName = apiResource.SingularName
+
+			namespacedApiResources = append(namespacedApiResources, *extendedApiResource)
+		}
+	}
+
+	return namespacedApiResources, err
 }

@@ -7,6 +7,7 @@ import (
 	flagsPkg "nsmurder/flags" // Flags for this CLI
 	"nsmurder/operations"     // Operations against Kubernetes API
 
+	"k8s.io/client-go/discovery"          // Ref: https://pkg.go.dev/k8s.io/client-go/discovery#DiscoveryClient
 	"k8s.io/client-go/dynamic"            // Ref: https://pkg.go.dev/k8s.io/client-go@v0.24.1/dynamic
 	ctrl "sigs.k8s.io/controller-runtime" // Ref: https://pkg.go.dev/sigs.k8s.io/controller-runtime/pkg/client/config
 )
@@ -47,7 +48,7 @@ func main() {
 
 	namespaces = flags.GetNamespaces()
 	if *flags.IncludeAll {
-		namespaces, err = operations.GetAllNamespaces(ctx, client)
+		namespaces, err = operations.GetNamespaces(ctx, client)
 	}
 
 	if err != nil {
@@ -73,6 +74,17 @@ func main() {
 	log.Print(apiServices)
 
 	// Delete stuck namespace's resources
+	clientDiscovery, _ := discovery.NewDiscoveryClientForConfig(config)
+	_, err = operations.GetNamespacedApiResources(ctx, clientDiscovery)
+	if err != nil {
+		log.Print("lets see")
+	}
+
+	//
+	algo, err := operations.GetTerminatingNamespaces(ctx, client)
+	if err != nil {
+		log.Print(algo)
+	}
 
 	// TODO: Implement a time to wait between processes to let Kubernetes to manage the situation
 
