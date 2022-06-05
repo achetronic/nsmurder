@@ -19,9 +19,8 @@ func (i *arrayFlags) Set(value string) error {
 
 // Flags represents all the available command flags
 type FlagsSpec struct {
-	ConnectionMode *string    `json:"connection_mode"`
-	Kubeconfig     *string    `json:"kubeconfig"`
-	IncludeAll     *bool      `json:"include_all"`
-	Include        arrayFlags `json:"include"`
-	Ignore         arrayFlags `json:"ignore"`
+	//Kubeconfig     *string    `json:"kubeconfig"`
+	IncludeAll *bool      `json:"include_all"`
+	Include    arrayFlags `json:"include"`
+	Ignore     arrayFlags `json:"ignore"`
 }

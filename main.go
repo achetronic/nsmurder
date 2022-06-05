@@ -17,9 +17,7 @@ const (
 	GetClientMessage = "Generating the client to connect to Kubernetes"
 
 	// Error messages
-	KubernetesGetClientErrorMessage = "Error connecting to Kubernetes API: %s"
-	GetNamespacesErrorMessage       = "Error getting the namespaces: %s"
-	DeleteNamespaceErrorMessage     = "Error deleting namespace: %s"
+	KubernetesGetClientErrorMessage = "error connecting to Kubernetes API: %s"
 )
 
 var flags flagsPkg.FlagsSpec
@@ -38,54 +36,46 @@ func main() {
 		log.Printf(KubernetesGetClientErrorMessage, err)
 	}
 
-	client, err := dynamic.NewForConfig(config)
+	// Create the clients to do requests to out friend: Kubernetes
+	client := operations.KubernetesClientsSpec{}
+
+	client.Dynamic, err = dynamic.NewForConfig(config)
 	if err != nil {
 		log.Printf(KubernetesGetClientErrorMessage, err)
 	}
 
-	// Get the namespace to terminate
-	var namespaces []string
-
-	namespaces = flags.GetNamespaces()
-	if *flags.IncludeAll {
-		namespaces, err = operations.GetNamespaces(ctx, client)
+	client.Discovery, err = discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		log.Printf(KubernetesGetClientErrorMessage, err)
 	}
 
+	// ------------------------------------------------------------------------
+	// Schedule namespaces deletion
+	err = ScheduleNamespaceDeletion(ctx, client)
 	if err != nil {
-		log.Printf(GetNamespacesErrorMessage, err)
-	}
-
-	log.Print(namespaces)
-
-	// Schedule deletion for desired namespaces
-	err = operations.DeleteNamespaces(ctx, client, namespaces)
-	if err != nil {
-		log.Printf(DeleteNamespaceErrorMessage, err)
+		log.Print(err)
 	}
 
 	// TODO: Implement a time to wait between processes to let Kubernetes to manage the situation
 
-	// Delete unavailable APIs
-	apiServices, err := operations.GetOrphanApiServices(ctx, client)
+	// ---------------------------------------------------------------
+	// Delete unavailable API services
+	log.Print("Deleting orphan APIService resources")
+	err = operations.DeleteOrphanApiServices(ctx, client.Dynamic)
 	if err != nil {
-		log.Print("lets see")
+		log.Print(err)
 	}
 
-	log.Print(apiServices)
-
-	// Delete stuck namespace's resources
-	clientDiscovery, _ := discovery.NewDiscoveryClientForConfig(config)
-	_, err = operations.GetNamespacedApiResources(ctx, clientDiscovery)
+	// ---------------------------------------------------------------
+	// Delete resources on stuck namespaces
+	log.Print("Cleaning resources inside stuck namespaces")
+	err = CleanStuckNamespaces(ctx, client)
 	if err != nil {
-		log.Print("lets see")
-	}
-
-	//
-	algo, err := operations.GetTerminatingNamespaces(ctx, client)
-	if err != nil {
-		log.Print(algo)
+		log.Print(err)
 	}
 
 	// TODO: Implement a time to wait between processes to let Kubernetes to manage the situation
+
+	// ---------------------------------------------------------------
 
 }

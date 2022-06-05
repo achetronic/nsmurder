@@ -160,7 +160,25 @@ func GetOrphanApiServices(ctx context.Context, client dynamic.Interface) (apiSer
 	return apiServices, err
 }
 
-//
+// DeleteOrphanApiServices delete all APIService resources which are not 'Available'
+func DeleteOrphanApiServices(ctx context.Context, client dynamic.Interface) (err error) {
+
+	orphanApiServices, err := GetOrphanApiServices(ctx, client)
+	if err != nil {
+		return err
+	}
+
+	// Remove APIService resources
+	for _, orphanApiService := range orphanApiServices {
+		err = DeleteResource(ctx, client, "apiregistration.k8s.io", "v1", "apiservices", orphanApiService, "")
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
+}
+
 // GetNamespacedApiResources return a list with essential data about all namespaced resource types in the cluster
 func GetNamespacedApiResources(ctx context.Context, client *discovery.DiscoveryClient) (
 	namespacedApiResources []ExtendedGroupVersionKindSpec, err error) {
@@ -200,3 +218,21 @@ func GetNamespacedApiResources(ctx context.Context, client *discovery.DiscoveryC
 
 	return namespacedApiResources, err
 }
+
+//
+// func CleanNamespacesResources(ctx context.Context, client *discovery.DiscoveryClient, namespaces []string) (err error) {
+
+// 	namespacedApiResources, err = GetNamespacedApiResources(ctx, client)
+// 	if err != nil {
+// 		log.Print("lets see")
+// 	}
+
+// 	//
+// 	algo, err := GetTerminatingNamespaces(ctx, client)
+// 	if err != nil {
+// 		log.Print(algo)
+// 	}
+
+// 	// Pillar los namespaces atascados
+
+// }
