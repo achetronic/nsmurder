@@ -218,21 +218,3 @@ func GetNamespacedApiResources(ctx context.Context, client *discovery.DiscoveryC
 
 	return namespacedApiResources, err
 }
-
-//
-// func CleanNamespacesResources(ctx context.Context, client *discovery.DiscoveryClient, namespaces []string) (err error) {
-
-// 	namespacedApiResources, err = GetNamespacedApiResources(ctx, client)
-// 	if err != nil {
-// 		log.Print("lets see")
-// 	}
-
-// 	//
-// 	algo, err := GetTerminatingNamespaces(ctx, client)
-// 	if err != nil {
-// 		log.Print(algo)
-// 	}
-
-// 	// Pillar los namespaces atascados
-
-// }
