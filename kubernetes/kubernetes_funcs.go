@@ -1,38 +1,57 @@
-package operations
+package kubernetes
 
 import (
 	"context"
 	"encoding/json"
 	"strings"
 
+	// Kubernetes clients
+	"k8s.io/client-go/discovery"          // Ref: https://pkg.go.dev/k8s.io/client-go/discovery
+	"k8s.io/client-go/dynamic"            // Ref: https://pkg.go.dev/k8s.io/client-go/dynamic
+	ctrl "sigs.k8s.io/controller-runtime" // Ref: https://pkg.go.dev/sigs.k8s.io/controller-runtime/pkg/client/config
+
+	// Kubernetes types
 	meta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/dynamic"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
 	StatusConditionTypeAvailable = "Available"
 )
 
-// Global references
-// Ref: https://caiorcferreira.github.io/post/the-kubernetes-dynamic-client/
-// Ref: https://pkg.go.dev/k8s.io/client-go@v0.24.1/dynamic
-// Ref: https://itnext.io/generically-working-with-kubernetes-resources-in-go-53bce678f887
-// Ref: https://pkg.go.dev/k8s.io/client-go/discovery#DiscoveryClient
+// SetClients configure the clients needed to perform requests to Kubernetes API
+func (c *ConnectionClientsSpec) SetClients() (err error) {
 
-// GetResources ---
-func GetResources(ctx context.Context, client dynamic.Interface,
-	group string, version string, kind string, namespace string) (
+	config, err := ctrl.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	// Create the clients to do requests to out friend: Kubernetes
+	c.Dynamic, err = dynamic.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
+	c.Discovery, err = discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+// GetResources find resources of a certain type in the cluster
+func GetResources(ctx context.Context, client dynamic.Interface, resourceType ResourceTypeSpec, namespace string) (
 	[]unstructured.Unstructured, error) {
 
 	resourceId := schema.GroupVersionResource{
-		Group:    group,
-		Version:  version,
-		Resource: kind,
+		Group:    resourceType.GVK.Group,
+		Version:  resourceType.GVK.Version,
+		Resource: resourceType.Name,
 	}
 
 	list, err := client.
@@ -47,20 +66,13 @@ func GetResources(ctx context.Context, client dynamic.Interface,
 	return list.Items, nil
 }
 
-// DeleteResources ---
-func DeleteResource(ctx context.Context, client dynamic.Interface,
-	group string, version string, kind string, name string, namespace string) error {
-
-	resourceId := schema.GroupVersionResource{
-		Group:    group,
-		Version:  version,
-		Resource: kind,
-	}
+// DeleteResources delete a resource from the cluster
+func DeleteResource(ctx context.Context, client dynamic.Interface, resource ResourceSpec) error {
 
 	err := client.
-		Resource(resourceId).
-		Namespace(namespace).
-		Delete(ctx, name, metav1.DeleteOptions{})
+		Resource(resource.GroupVersionResource).
+		Namespace(resource.Namespace).
+		Delete(ctx, resource.Name, metav1.DeleteOptions{})
 
 	return err
 }
@@ -68,7 +80,12 @@ func DeleteResource(ctx context.Context, client dynamic.Interface,
 // getNamespaces get a list of all namespaces existing in the cluster
 func getNamespaces(ctx context.Context, client dynamic.Interface) (namespaces []unstructured.Unstructured, err error) {
 
-	namespaceList, err := GetResources(ctx, client, "", "v1", "namespaces", "")
+	namespacesType := ResourceTypeSpec{}
+	namespacesType.GVK.Group = ""
+	namespacesType.GVK.Version = "v1"
+	namespacesType.Name = "namespaces"
+
+	namespaceList, err := GetResources(ctx, client, namespacesType, "")
 
 	if err != nil {
 		return namespaces, err
@@ -118,8 +135,16 @@ func GetTerminatingNamespaces(ctx context.Context, client dynamic.Interface) (na
 // DeleteNamespaces schedule namespaces for deletion
 func DeleteNamespaces(ctx context.Context, client dynamic.Interface, namespaces []string) (err error) {
 
+	resource := ResourceSpec{}
+
 	for _, namespaceName := range namespaces {
-		err := DeleteResource(ctx, client, "", "v1", "namespaces", namespaceName, "")
+
+		resource.Group = ""
+		resource.Version = "v1"
+		resource.Resource = "namespaces"
+		resource.Namespace = namespaceName
+
+		err := DeleteResource(ctx, client, resource)
 
 		if err != nil {
 			break
@@ -134,8 +159,13 @@ func GetOrphanApiServices(ctx context.Context, client dynamic.Interface) (apiSer
 
 	var currentStatus StatusSpec
 
+	apiServicesType := ResourceTypeSpec{}
+	apiServicesType.Name = "apiservices"
+	apiServicesType.GVK.Group = "apiregistration.k8s.io"
+	apiServicesType.GVK.Version = "v1"
+
 	// Get all the APIService resources
-	apiServiceList, err := GetResources(ctx, client, "apiregistration.k8s.io", "v1", "apiservices", "")
+	apiServiceList, err := GetResources(ctx, client, apiServicesType, "")
 
 	if err != nil {
 		return apiServices, err
@@ -168,9 +198,18 @@ func DeleteOrphanApiServices(ctx context.Context, client dynamic.Interface) (err
 		return err
 	}
 
+	resource := ResourceSpec{}
+	resource.Group = "apiregistration.k8s.io"
+	resource.Version = "v1"
+	resource.Resource = "apiservices"
+	resource.Namespace = ""
+
 	// Remove APIService resources
 	for _, orphanApiService := range orphanApiServices {
-		err = DeleteResource(ctx, client, "apiregistration.k8s.io", "v1", "apiservices", orphanApiService, "")
+
+		resource.Name = orphanApiService
+
+		err = DeleteResource(ctx, client, resource)
 		if err != nil {
 			return err
 		}
@@ -180,15 +219,14 @@ func DeleteOrphanApiServices(ctx context.Context, client dynamic.Interface) (err
 }
 
 // GetNamespacedApiResources return a list with essential data about all namespaced resource types in the cluster
-func GetNamespacedApiResources(ctx context.Context, client *discovery.DiscoveryClient) (
-	namespacedApiResources []ExtendedGroupVersionKindSpec, err error) {
+func GetNamespacedApiResources(ctx context.Context, client *discovery.DiscoveryClient) (resources []ResourceTypeSpec, err error) {
 
-	extendedApiResource := &ExtendedGroupVersionKindSpec{}
+	extendedApiResource := &ResourceTypeSpec{}
 
 	// Ask the API for all preferred namespaced resources
 	apiResourceLists, err := client.ServerPreferredNamespacedResources()
 	if err != nil {
-		return namespacedApiResources, err
+		return resources, err
 	}
 
 	// Store only useful information about retrieved resources
@@ -197,24 +235,45 @@ func GetNamespacedApiResources(ctx context.Context, client *discovery.DiscoveryC
 		for _, apiResource := range apiResourceList.APIResources {
 
 			// Assume there is no Group but only Version
-			extendedApiResource.Group = ""
-			extendedApiResource.Version = apiResourceList.GroupVersion
+			extendedApiResource.GVK.Group = ""
+			extendedApiResource.GVK.Version = apiResourceList.GroupVersion
 
 			// Separate Group and Version
 			groupVersion := strings.Split(apiResourceList.GroupVersion, "/")
 			if len(groupVersion) == 2 {
-				extendedApiResource.Group = groupVersion[0]
-				extendedApiResource.Version = groupVersion[1]
+				extendedApiResource.GVK.Group = groupVersion[0]
+				extendedApiResource.GVK.Version = groupVersion[1]
 			}
 
 			// Fill the rest of data about the resource
-			extendedApiResource.Kind = apiResource.Kind
+			extendedApiResource.GVK.Kind = apiResource.Kind
 			extendedApiResource.Name = apiResource.Name
 			extendedApiResource.SingularName = apiResource.SingularName
 
-			namespacedApiResources = append(namespacedApiResources, *extendedApiResource)
+			resources = append(resources, *extendedApiResource)
 		}
 	}
 
-	return namespacedApiResources, err
+	return resources, err
+}
+
+// DeleteResourceFinalizers delete finalizers from the given resource
+func DeleteResourceFinalizers(ctx context.Context, client dynamic.Interface, resource ResourceSpec) (err error) {
+
+	patchBytes := []byte(`{"metadata: {"finalizers": null}}`)
+	patchForce := true
+	patchOptions := metav1.PatchOptions{
+		Force: &patchForce,
+	}
+
+	_, err = client.
+		Resource(resource.GroupVersionResource).
+		Namespace(resource.Namespace).
+		Patch(ctx, resource.Name, types.MergePatchType, patchBytes, patchOptions)
+
+	if err != nil {
+		return err
+	}
+
+	return err
 }

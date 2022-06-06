@@ -1,6 +1,9 @@
 package flags
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 // arrayFlags type allows to call a '--flag' more than once
 type arrayFlags []string
@@ -20,7 +23,9 @@ func (i *arrayFlags) Set(value string) error {
 // Flags represents all the available command flags
 type FlagsSpec struct {
 	//Kubeconfig     *string    `json:"kubeconfig"`
-	IncludeAll *bool      `json:"include_all"`
-	Include    arrayFlags `json:"include"`
-	Ignore     arrayFlags `json:"ignore"`
+
+	Duration   *time.Duration `json:"duration,omitempty"`
+	IncludeAll *bool          `json:"include_all"`
+	Include    arrayFlags     `json:"include"`
+	Ignore     arrayFlags     `json:"ignore"`
 }

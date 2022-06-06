@@ -2,10 +2,12 @@ package flags
 
 import (
 	"flag"
+	"time"
 )
 
 const (
 	// KubeconfigFlagDescription = "(optional) absolute path to the kubeconfig file"
+	DurationFlagDescription   = "(Optional) Duration between different strategies"
 	IncludeAllFlagDescription = "Schedule deletion for all namespaces"
 	IncludeFlagDescription    = "Namespaces to include in deletion list"
 	IgnoreFlagDescription     = "Namespaces to ignore from deletion list"
@@ -14,6 +16,8 @@ const (
 // ParseFlags parse the flags from the command line
 func (flags *FlagsSpec) ParseFlags() {
 	// flags.Kubeconfig = flag.String("kubeconfigg", filepath.Join(homedir.HomeDir(), ".kube", "config"), KubeconfigFlagDescription)
+
+	flags.Duration = flag.Duration("duration-between-strategies", time.Minute, DurationFlagDescription)
 	flags.IncludeAll = flag.Bool("include-all", false, IncludeAllFlagDescription)
 	flag.Var(&flags.Include, "include", IncludeFlagDescription)
 	flag.Var(&flags.Ignore, "ignore", IgnoreFlagDescription)
