@@ -2,6 +2,7 @@ package flags
 
 import (
 	"flag"
+	"strings"
 	"time"
 )
 
@@ -9,33 +10,22 @@ const (
 	// KubeconfigFlagDescription = "(optional) absolute path to the kubeconfig file"
 	DurationFlagDescription   = "(Optional) Duration between different strategies"
 	IncludeAllFlagDescription = "Schedule deletion for all namespaces"
-	IncludeFlagDescription    = "Namespaces to include in deletion list"
-	IgnoreFlagDescription     = "Namespaces to ignore from deletion list"
+	IncludeFlagDescription    = "Coma-separated list of namespaces to include for deletion"
+	IgnoreFlagDescription     = "Coma-separated list of namespaces to ignore from deletion"
 )
 
 // ParseFlags parse the flags from the command line
 func (flags *FlagsSpec) ParseFlags() {
-	// flags.Kubeconfig = flag.String("kubeconfigg", filepath.Join(homedir.HomeDir(), ".kube", "config"), KubeconfigFlagDescription)
+	// flags.Kubeconfig = flag.String("kubeconfig", filepath.Join(homedir.HomeDir(), ".kube", "config"), KubeconfigFlagDescription)
 
 	flags.Duration = flag.Duration("duration-between-strategies", time.Minute, DurationFlagDescription)
 	flags.IncludeAll = flag.Bool("include-all", false, IncludeAllFlagDescription)
-	flag.Var(&flags.Include, "include", IncludeFlagDescription)
-	flag.Var(&flags.Ignore, "ignore", IgnoreFlagDescription)
+
+	includeStr := flag.String("include", "", IncludeFlagDescription)
+	flags.Include = strings.Split(strings.TrimSpace(*includeStr), ",")
+
+	ignoreStr := flag.String("ignore", "", IgnoreFlagDescription)
+	flags.Ignore = strings.Split(strings.TrimSpace(*ignoreStr), ",")
+
 	flag.Parse()
-}
-
-// GetNamespacesFromFlags return a list with namespaces already filtered from flags
-func (flags *FlagsSpec) GetNamespaces() (namespaces []string) {
-
-	for _, includedNamespace := range flags.Include {
-
-		// Ignore desired namespaces
-		if StringInList(includedNamespace, flags.Ignore) {
-			continue
-		}
-
-		namespaces = append(namespaces, includedNamespace)
-	}
-
-	return namespaces
 }

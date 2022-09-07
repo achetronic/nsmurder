@@ -66,7 +66,7 @@ func GetResources(ctx context.Context, client dynamic.Interface, resourceType Re
 	return list.Items, nil
 }
 
-// DeleteResources delete a resource from the cluster
+// DeleteResource delete a resource from the cluster
 func DeleteResource(ctx context.Context, client dynamic.Interface, resource ResourceSpec) error {
 
 	err := client.
@@ -245,7 +245,7 @@ func GetNamespacedApiResources(ctx context.Context, client *discovery.DiscoveryC
 				extendedApiResource.GVK.Version = groupVersion[1]
 			}
 
-			// Fill the rest of data about the resource
+			// Fill the rest with data about the resource
 			extendedApiResource.GVK.Kind = apiResource.Kind
 			extendedApiResource.Name = apiResource.Name
 			extendedApiResource.SingularName = apiResource.SingularName

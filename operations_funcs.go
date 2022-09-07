@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"nsmurder/kubernetes"
 )
 
@@ -21,16 +20,26 @@ const (
 // ScheduleNamespaceDeletion schedule deletion for all selected namespaces according to the CLI flags
 func ScheduleNamespaceDeletion(ctx context.Context, client kubernetes.ConnectionClientsSpec) (err error) {
 
-	var namespaces []string
+	var tmpNamespaces []string
 
-	namespaces = inputFlags.GetNamespaces()
+	tmpNamespaces = inputFlags.Include
 
 	if *inputFlags.IncludeAll {
-		namespaces, err = kubernetes.GetNamespaces(ctx, client.Dynamic)
+		tmpNamespaces, err = kubernetes.GetNamespaces(ctx, client.Dynamic)
+		if err != nil {
+			return errors.New(GetNamespacesErrorMessage)
+		}
 	}
 
-	if err != nil {
-		return errors.New(GetNamespacesErrorMessage)
+	var namespaces []string
+
+	// Delete ignored namespaces from list
+	for _, ignoredNs := range inputFlags.Ignore {
+		for _, ns := range tmpNamespaces {
+			if ns != ignoredNs {
+				namespaces = append(namespaces, ns)
+			}
+		}
 	}
 
 	// Schedule deletion for desired namespaces
