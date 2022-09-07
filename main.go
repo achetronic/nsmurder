@@ -7,6 +7,7 @@ import (
 
 	"nsmurder/flags"      // Configuration flags for the CLI
 	"nsmurder/kubernetes" // Requests against Kubernetes API
+	"nsmurder/manager"    // Requests against Kubernetes API
 )
 
 const (
@@ -34,6 +35,12 @@ func main() {
 	// 1. Parse the flags from the command line
 	inputFlags.ParseFlags()
 
+	var nsManager manager.Manager
+	nsManager.Ignore = inputFlags.Ignore
+	nsManager.Include = inputFlags.Include
+	nsManager.IncludeAll = inputFlags.IncludeAll
+	nsManager.Duration = inputFlags.Duration
+
 	// 2. Generate the Kubernetes client to modify the resources
 	log.Print(GetClientMessage)
 	client := kubernetes.ConnectionClientsSpec{}
@@ -45,7 +52,7 @@ func main() {
 
 	// 3. Schedule namespaces deletion
 	log.Print(ScheduleNamespaceDeletionMessage)
-	err = ScheduleNamespaceDeletion(ctx, client)
+	err = nsManager.ScheduleNamespaceDeletion(ctx, client)
 	if err != nil {
 		log.Printf(ScheduleNamespaceDeletionErrorMessage, err)
 	}
@@ -67,7 +74,7 @@ func main() {
 
 	// 5. Delete resources on stuck namespaces
 	log.Print(CleanResourcesMessage)
-	err = CleanStuckNamespaces(ctx, client)
+	err = manager.CleanStuckNamespaces(ctx, client)
 	if err != nil {
 		log.Printf(CleanResourcesErrorMessage, err)
 	}
@@ -78,7 +85,7 @@ func main() {
 
 	// 6. DeleteNamespacesByForce
 	log.Print(DeleteNamespaceByForceMessage)
-	err = DeleteTerminatingNamespacesByForce(ctx, client)
+	err = manager.DeleteTerminatingNamespacesByForce(ctx, client)
 	if err != nil {
 		log.Print(err)
 	}

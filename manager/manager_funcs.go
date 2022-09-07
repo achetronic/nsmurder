@@ -1,9 +1,11 @@
-package main
+package manager
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"k8s.io/client-go/dynamic"
+	"nsmurder/flags"
 	"nsmurder/kubernetes"
 )
 
@@ -17,15 +19,36 @@ const (
 	CleanNamespaceErrorMessage            = "error cleaning a namespace: %s"
 )
 
+// Manager TODO
+type Manager struct {
+	flags.FlagsSpec
+}
+
+// GetNamespaces get a list of all namespaces existing in the cluster
+func GetNamespaces(ctx context.Context, client dynamic.Interface) (namespaces []string, err error) {
+
+	namespaceList, err := kubernetes.GetNamespaces(ctx, client)
+
+	if err != nil {
+		return namespaces, err
+	}
+
+	for _, value := range namespaceList {
+		namespaces = append(namespaces, value.GetName())
+	}
+
+	return namespaces, err
+}
+
 // ScheduleNamespaceDeletion schedule deletion for all selected namespaces according to the CLI flags
-func ScheduleNamespaceDeletion(ctx context.Context, client kubernetes.ConnectionClientsSpec) (err error) {
+func (m *Manager) ScheduleNamespaceDeletion(ctx context.Context, client kubernetes.ConnectionClientsSpec) (err error) {
 
 	var tmpNamespaces []string
 
-	tmpNamespaces = inputFlags.Include
+	tmpNamespaces = m.Include
 
-	if *inputFlags.IncludeAll {
-		tmpNamespaces, err = kubernetes.GetNamespaces(ctx, client.Dynamic)
+	if *m.IncludeAll {
+		tmpNamespaces, err = GetNamespaces(ctx, client.Dynamic)
 		if err != nil {
 			return errors.New(GetNamespacesErrorMessage)
 		}
@@ -34,7 +57,7 @@ func ScheduleNamespaceDeletion(ctx context.Context, client kubernetes.Connection
 	var namespaces []string
 
 	// Delete ignored namespaces from list
-	for _, ignoredNs := range inputFlags.Ignore {
+	for _, ignoredNs := range m.Ignore {
 		for _, ns := range tmpNamespaces {
 			if ns != ignoredNs {
 				namespaces = append(namespaces, ns)
@@ -96,7 +119,7 @@ func CleanNamespace(ctx context.Context, client kubernetes.ConnectionClientsSpec
 func CleanStuckNamespaces(ctx context.Context, client kubernetes.ConnectionClientsSpec) (err error) {
 
 	// Get all resources able to be created into a namespace
-	apiResources, err := kubernetes.GetNamespacedApiResources(ctx, client.Discovery)
+	apiResources, err := kubernetes.GetNamespacedApiResources(client.Discovery)
 	if err != nil {
 		return errors.New(GetNamespacedApiResourcesErrorMessage)
 	}
