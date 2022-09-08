@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/utils/strings/slices"
+	"log"
 	"nsmurder/flags"
 	"nsmurder/kubernetes"
 )
@@ -43,6 +46,7 @@ func GetNamespaces(ctx context.Context, client dynamic.Interface) (namespaces []
 // ScheduleNamespaceDeletion schedule deletion for all selected namespaces according to the CLI flags
 func (m *Manager) ScheduleNamespaceDeletion(ctx context.Context, client kubernetes.ConnectionClientsSpec) (err error) {
 
+	// Calculate included namespaces
 	var tmpNamespaces []string
 
 	tmpNamespaces = m.Include
@@ -57,11 +61,11 @@ func (m *Manager) ScheduleNamespaceDeletion(ctx context.Context, client kubernet
 	var namespaces []string
 
 	// Delete ignored namespaces from list
-	for _, ignoredNs := range m.Ignore {
-		for _, ns := range tmpNamespaces {
-			if ns != ignoredNs {
-				namespaces = append(namespaces, ns)
-			}
+	for _, ns := range tmpNamespaces {
+		log.Println(ns)
+
+		if !slices.Contains(m.Ignore, ns) {
+			namespaces = append(namespaces, ns)
 		}
 	}
 
@@ -74,24 +78,24 @@ func (m *Manager) ScheduleNamespaceDeletion(ctx context.Context, client kubernet
 	return err
 }
 
-// CleanNamespace delete given resource types from a namespace
+// CleanNamespace delete all the resources of the given types from a namespace
 func CleanNamespace(ctx context.Context, client kubernetes.ConnectionClientsSpec,
 	namespace string, ResourceTypes []kubernetes.ResourceTypeSpec) (err error) {
 
-	apiResourceType := &kubernetes.ResourceTypeSpec{}
+	currentApiResourceType := &kubernetes.ResourceTypeSpec{}
 	currentResource := &kubernetes.ResourceSpec{}
 
 	// Loop over all given resource types
 	for _, resourceType := range ResourceTypes {
 
-		apiResourceType.GVK.Group = resourceType.GVK.Group
-		apiResourceType.GVK.Version = resourceType.GVK.Version
-		apiResourceType.Name = resourceType.Name
+		currentApiResourceType.GVK.Group = resourceType.GVK.Group
+		currentApiResourceType.GVK.Version = resourceType.GVK.Version
+		currentApiResourceType.Name = resourceType.Name
 
 		// Get all resources of current type from the namespace
-		resources, err := kubernetes.GetResources(ctx, client.Dynamic, *apiResourceType, namespace)
+		resources, err := kubernetes.GetResources(ctx, client.Dynamic, *currentApiResourceType, namespace)
 
-		if err != nil {
+		if err != nil && !apierrors.IsMethodNotSupported(err) {
 			return err
 		}
 
@@ -106,7 +110,7 @@ func CleanNamespace(ctx context.Context, client kubernetes.ConnectionClientsSpec
 
 			err := kubernetes.DeleteResource(ctx, client.Dynamic, *currentResource)
 
-			if err != nil {
+			if err != nil && !apierrors.IsMethodNotSupported(err) && !apierrors.IsNotFound(err) {
 				return err
 			}
 		}
