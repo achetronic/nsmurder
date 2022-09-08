@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"log"
 	"strings"
 
 	// Kubernetes clients
@@ -107,9 +108,9 @@ func GetResources(ctx context.Context, client dynamic.Interface, resourceType Re
 }
 
 // DeleteResource delete a resource from the cluster
-func DeleteResource(ctx context.Context, client dynamic.Interface, resource ResourceSpec) error {
+func DeleteResource(ctx context.Context, client dynamic.Interface, resource ResourceSpec) (err error) {
 
-	err := client.
+	err = client.
 		Resource(resource.GroupVersionResource).
 		Namespace(resource.Namespace).
 		Delete(ctx, resource.Name, metav1.DeleteOptions{})
@@ -164,6 +165,8 @@ func DeleteNamespaces(ctx context.Context, client dynamic.Interface, namespaces 
 
 	for _, namespaceName := range namespaces {
 
+		log.Printf("Trying to delete namespace: %s\n", namespaceName)
+
 		resource.Group = ""
 		resource.Version = "v1"
 		resource.Resource = "namespaces"
@@ -172,6 +175,7 @@ func DeleteNamespaces(ctx context.Context, client dynamic.Interface, namespaces 
 		err = DeleteResource(ctx, client, resource)
 
 		if err != nil && !errors.IsNotFound(err) {
+			log.Printf("Encontré un error: %s \n", err)
 			break
 		}
 	}
