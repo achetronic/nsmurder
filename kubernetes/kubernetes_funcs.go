@@ -159,6 +159,7 @@ func GetTerminatingNamespaces(ctx context.Context, client dynamic.Interface) (na
 
 // DeleteNamespaces schedule namespaces for deletion
 // TODO: Check if error handling is working
+// TODO: FIX this function until it works
 func DeleteNamespaces(ctx context.Context, client dynamic.Interface, namespaces []string) (err error) {
 
 	resource := ResourceSpec{}
@@ -171,6 +172,7 @@ func DeleteNamespaces(ctx context.Context, client dynamic.Interface, namespaces 
 		resource.Version = "v1"
 		resource.Resource = "namespaces"
 		resource.Namespace = namespaceName
+		//resource.Name = namespaceName
 
 		err = DeleteResource(ctx, client, resource)
 
