@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"log"
 	"strings"
 
 	// Kubernetes clients
@@ -158,26 +157,29 @@ func GetTerminatingNamespaces(ctx context.Context, client dynamic.Interface) (na
 }
 
 // DeleteNamespaces schedule namespaces for deletion
-// TODO: Check if error handling is working
-// TODO: FIX this function until it works
 func DeleteNamespaces(ctx context.Context, client dynamic.Interface, namespaces []string) (err error) {
 
 	resource := ResourceSpec{}
 
 	for _, namespaceName := range namespaces {
 
-		log.Printf("Trying to delete namespace: %s\n", namespaceName)
+		//log.Printf("Trying to delete namespace: %s\n", namespaceName)
 
 		resource.Group = ""
 		resource.Version = "v1"
 		resource.Resource = "namespaces"
-		resource.Namespace = namespaceName
-		//resource.Name = namespaceName
+		resource.Namespace = ""
+		resource.Name = namespaceName
 
 		err = DeleteResource(ctx, client, resource)
 
-		if err != nil && !errors.IsNotFound(err) {
-			log.Printf("Encontré un error: %s \n", err)
+		if err != nil {
+
+			// IsNotFound is not an error. The function is trying to delete
+			if errors.IsNotFound(err) {
+				err = nil
+				continue
+			}
 			break
 		}
 	}
@@ -223,7 +225,6 @@ func GetOrphanApiServices(ctx context.Context, client dynamic.Interface) (apiSer
 }
 
 // DeleteOrphanApiServices delete all APIService resources which are not 'Available'
-// TODO: Check if error handling is working
 func DeleteOrphanApiServices(ctx context.Context, client dynamic.Interface) (err error) {
 
 	orphanApiServices, err := GetOrphanApiServices(ctx, client)
@@ -244,8 +245,12 @@ func DeleteOrphanApiServices(ctx context.Context, client dynamic.Interface) (err
 
 		err = DeleteResource(ctx, client, resource)
 
-		if err != nil && !errors.IsNotFound(err) {
-			return err
+		if err != nil {
+			if errors.IsNotFound(err) {
+				err = nil
+				continue
+			}
+			break
 		}
 	}
 
@@ -255,16 +260,13 @@ func DeleteOrphanApiServices(ctx context.Context, client dynamic.Interface) (err
 // DeleteResourceFinalizers delete finalizers from the given resource
 func DeleteResourceFinalizers(ctx context.Context, client dynamic.Interface, resource ResourceSpec) (err error) {
 
-	patchBytes := []byte(`{"metadata: {"finalizers": null}}`)
-	patchForce := true
-	patchOptions := metav1.PatchOptions{
-		Force: &patchForce,
-	}
+	patchBytes := []byte(`[{"op":"remove","path":"/metadata/finalizers"}]`)
+	patchOptions := metav1.PatchOptions{}
 
 	_, err = client.
 		Resource(resource.GroupVersionResource).
 		Namespace(resource.Namespace).
-		Patch(ctx, resource.Name, types.MergePatchType, patchBytes, patchOptions)
+		Patch(ctx, resource.Name, types.JSONPatchType, patchBytes, patchOptions)
 
 	if err != nil {
 		return err

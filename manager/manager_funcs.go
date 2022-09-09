@@ -7,7 +7,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/utils/strings/slices"
-	"log"
 	"nsmurder/flags"
 	"nsmurder/kubernetes"
 )
@@ -62,8 +61,6 @@ func (m *Manager) ScheduleNamespaceDeletion(ctx context.Context, client kubernet
 
 	// Delete ignored namespaces from list
 	for _, ns := range tmpNamespaces {
-		log.Println(ns)
-
 		if !slices.Contains(m.Ignore, ns) {
 			namespaces = append(namespaces, ns)
 		}
@@ -109,8 +106,13 @@ func CleanNamespace(ctx context.Context, client kubernetes.ConnectionClientsSpec
 			currentResource.Namespace = namespace
 
 			err := kubernetes.DeleteResource(ctx, client.Dynamic, *currentResource)
-
 			if err != nil && !apierrors.IsMethodNotSupported(err) && !apierrors.IsNotFound(err) {
+				return err
+			}
+
+			// Remove the finalizers of each deleted resource
+			err = kubernetes.DeleteResourceFinalizers(ctx, client.Dynamic, *currentResource)
+			if err != nil {
 				return err
 			}
 		}
