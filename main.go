@@ -5,13 +5,13 @@ import (
 	"log"
 	"time"
 
-	"nsmurder/flags"      // Configuration flags for the CLI
-	"nsmurder/kubernetes" // Requests against Kubernetes API
-	"nsmurder/manager"    // Requests against Kubernetes API
+	"rodillo/flags"      // Configuration flags for the CLI
+	"rodillo/kubernetes" // Requests against Kubernetes API
+	"rodillo/manager"    // Requests against Kubernetes API
 )
 
 const (
-	// General message
+	// General messages
 	GetClientMessage                 = "Generating the client to connect to Kubernetes"
 	ScheduleNamespaceDeletionMessage = "Scheduling namespaces for deletion"
 	WaitTimeMessage                  = "Waiting prudential time between strategies: %s"
