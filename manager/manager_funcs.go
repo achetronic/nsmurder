@@ -7,8 +7,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/utils/strings/slices"
-	"nsmurder/flags"
-	"nsmurder/kubernetes"
+	"rodillo/flags"
+	"rodillo/kubernetes"
 )
 
 const (
