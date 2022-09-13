@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"log"
 	"strings"
 
 	// Kubernetes clients
@@ -21,6 +22,10 @@ import (
 
 const (
 	StatusConditionTypeAvailable = "Available"
+
+	// General messages
+	DeletedApiServiceMessage = "Deleted '%s' ApiService"
+	DeletedNamespaceMessage  = "Deleted '%s' namespace"
 )
 
 // SetClients configure the clients needed to perform requests to Kubernetes API
@@ -163,25 +168,19 @@ func DeleteNamespaces(ctx context.Context, client dynamic.Interface, namespaces 
 
 	for _, namespaceName := range namespaces {
 
-		//log.Printf("Trying to delete namespace: %s\n", namespaceName)
-
 		resource.Group = ""
 		resource.Version = "v1"
 		resource.Resource = "namespaces"
 		resource.Namespace = ""
 		resource.Name = namespaceName
 
+		err = nil
 		err = DeleteResource(ctx, client, resource)
-
-		if err != nil {
-
-			// IsNotFound is not an error. The function is trying to delete
-			if errors.IsNotFound(err) {
-				err = nil
-				continue
-			}
+		if err != nil && !errors.IsNotFound(err) {
 			break
 		}
+
+		log.Printf(DeletedNamespaceMessage, namespaceName)
 	}
 
 	return err
@@ -243,15 +242,12 @@ func DeleteOrphanApiServices(ctx context.Context, client dynamic.Interface) (err
 
 		resource.Name = orphanApiService
 
+		err = nil
 		err = DeleteResource(ctx, client, resource)
-
-		if err != nil {
-			if errors.IsNotFound(err) {
-				err = nil
-				continue
-			}
+		if err != nil && !errors.IsNotFound(err) {
 			break
 		}
+		log.Printf(DeletedApiServiceMessage, orphanApiService)
 	}
 
 	return err

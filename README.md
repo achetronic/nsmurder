@@ -2,7 +2,7 @@
 
 ## Description
 
-A CLI to assassinate Kubernetes namespaces following different strategies sequentially
+A CLI to smash Kubernetes namespaces following different strategies sequentially
 
 ## Motivation
 
@@ -56,7 +56,7 @@ To delete all the namespaces, ignoring some of them, execute the command as foll
 
 ```sh
 nsmurder --include-all \
-         --exclude "kube-system,kube-public,external-dns,calico-system" \
+         --ignore "kube-system,kube-public,external-dns,calico-system" \
          --duration-between-strategies "5m" \
          --kubeconfig "~/.kube/config"
 ```
@@ -65,7 +65,7 @@ To delete only some namespaces, execute it as in the following example:
 
 ```sh
 nsmurder --include "app-develop,app-staging,app-production" \
-         --exclude "kube-system,kube-public,external-dns,calico-system" \
+         --ignore "kube-system,kube-public,external-dns,calico-system" \
          --duration-between-strategies "50s" \
          --kubeconfig "~/.kube/config"
 ```
