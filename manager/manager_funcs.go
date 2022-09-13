@@ -5,13 +5,19 @@ import (
 	"errors"
 	"fmt"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/utils/strings/slices"
+	"log"
 	"rodillo/flags"
 	"rodillo/kubernetes"
 )
 
 const (
+
+	// General messages
+	DeletedNamespacedResourceMessage = "Deleted %s/%s resource of kind %s/%s"
+	DeletedNamespaceMessage          = "Deleted namespace %s"
 
 	// Error messages
 	GetNamespacesErrorMessage             = "error getting the namespaces: %s"
@@ -90,7 +96,8 @@ func CleanNamespace(ctx context.Context, client kubernetes.ConnectionClientsSpec
 		currentApiResourceType.Name = resourceType.Name
 
 		// Get all resources of current type from the namespace
-		resources, err := kubernetes.GetResources(ctx, client.Dynamic, *currentApiResourceType, namespace)
+		var resources []unstructured.Unstructured
+		resources, err = kubernetes.GetResources(ctx, client.Dynamic, *currentApiResourceType, namespace)
 
 		if err != nil && !apierrors.IsMethodNotSupported(err) {
 			return err
@@ -105,7 +112,7 @@ func CleanNamespace(ctx context.Context, client kubernetes.ConnectionClientsSpec
 			currentResource.Name = resource.GetName()
 			currentResource.Namespace = namespace
 
-			err := kubernetes.DeleteResource(ctx, client.Dynamic, *currentResource)
+			err = kubernetes.DeleteResource(ctx, client.Dynamic, *currentResource)
 			if err != nil && !apierrors.IsMethodNotSupported(err) && !apierrors.IsNotFound(err) {
 				return err
 			}
@@ -115,6 +122,13 @@ func CleanNamespace(ctx context.Context, client kubernetes.ConnectionClientsSpec
 			if err != nil {
 				return err
 			}
+
+			log.Printf(DeletedNamespacedResourceMessage,
+				currentResource.Namespace,
+				currentResource.Name,
+				resource.GetAPIVersion(),
+				resource.GetKind(),
+			)
 		}
 	}
 
@@ -138,7 +152,7 @@ func CleanStuckNamespaces(ctx context.Context, client kubernetes.ConnectionClien
 
 	// Loop over the namespaces cleaning them
 	for _, namespace := range terminatingNamespaces {
-		err := CleanNamespace(ctx, client, namespace, apiResources)
+		err = CleanNamespace(ctx, client, namespace, apiResources)
 		if err != nil {
 			errorMessage := fmt.Sprintf(CleanNamespaceErrorMessage, err)
 			return errors.New(errorMessage)
@@ -157,7 +171,8 @@ func DeleteTerminatingNamespacesByForce(ctx context.Context, client kubernetes.C
 	resource.Resource = "namespaces"
 
 	// Get terminating namespaces
-	namespaces, err := kubernetes.GetTerminatingNamespaces(ctx, client.Dynamic)
+	var namespaces []string
+	namespaces, err = kubernetes.GetTerminatingNamespaces(ctx, client.Dynamic)
 	if err != nil {
 		return err
 	}
@@ -171,6 +186,8 @@ func DeleteTerminatingNamespacesByForce(ctx context.Context, client kubernetes.C
 		if err != nil {
 			return err
 		}
+
+		log.Printf(DeletedNamespaceMessage, namespace)
 	}
 
 	return err
