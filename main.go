@@ -5,9 +5,9 @@ import (
 	"log"
 	"time"
 
-	"rodillo/flags"      // Configuration flags for the CLI
-	"rodillo/kubernetes" // Requests against Kubernetes API
-	"rodillo/manager"    // Requests against Kubernetes API
+	"nsmurder/flags"      // Configuration flags for the CLI
+	"nsmurder/kubernetes" // Requests against Kubernetes API
+	"nsmurder/manager"    // Requests against Kubernetes API
 )
 
 const (

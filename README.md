@@ -1,8 +1,8 @@
-# Rodillo
+# Nsmurder
 
 ## Description
 
-A CLI to smash Kubernetes namespaces following different strategies sequentially
+A CLI to assassinate Kubernetes namespaces following different strategies without mercy
 
 ## Motivation
 
@@ -77,8 +77,13 @@ nsmurder --include "app-develop,app-staging,app-production" \
 ## How to collaborate
 
 We are open to external collaborations for this project: improvements, bugfixes, whatever.
-For doing it, open an issue to discuss the need of the changes, then fork the repository, 
-make your changes to the code and open a PR.
+
+For doing it, open an issue to discuss the need of the changes, then:
+
+- Fork the repository
+- Make your changes to the code
+- Open a PR and wait for review
+
 The code will be reviewed and tested (always)
 
 > We are developers and hate bad code. For that reason we ask you the highest quality
