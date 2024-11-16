@@ -2,15 +2,15 @@ package manager
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"log"
+	"nsmurder/internal/flags"
+	"nsmurder/internal/kubernetes"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/utils/strings/slices"
-	"log"
-	"nsmurder/flags"
-	"nsmurder/kubernetes"
 )
 
 const (
@@ -59,7 +59,7 @@ func (m *Manager) ScheduleNamespaceDeletion(ctx context.Context, client kubernet
 	if *m.IncludeAll {
 		tmpNamespaces, err = GetNamespaces(ctx, client.Dynamic)
 		if err != nil {
-			return errors.New(GetNamespacesErrorMessage)
+			return fmt.Errorf(GetNamespacesErrorMessage, err.Error())
 		}
 	}
 
@@ -75,7 +75,7 @@ func (m *Manager) ScheduleNamespaceDeletion(ctx context.Context, client kubernet
 	// Schedule deletion for desired namespaces
 	err = kubernetes.DeleteNamespaces(ctx, client.Dynamic, namespaces)
 	if err != nil {
-		return errors.New(DeleteNamespaceErrorMessage)
+		return fmt.Errorf(DeleteNamespaceErrorMessage, err.Error())
 	}
 
 	return err
@@ -141,21 +141,20 @@ func CleanStuckNamespaces(ctx context.Context, client kubernetes.ConnectionClien
 	// Get all resources able to be created into a namespace
 	apiResources, err := kubernetes.GetNamespacedApiResources(client.Discovery)
 	if err != nil {
-		return errors.New(GetNamespacedApiResourcesErrorMessage)
+		return fmt.Errorf(GetNamespacedApiResourcesErrorMessage)
 	}
 
 	// Get all namespaces in phase 'Terminating'
 	terminatingNamespaces, err := kubernetes.GetTerminatingNamespaces(ctx, client.Dynamic)
 	if err != nil {
-		return errors.New(GetTerminatingNamespacesErrorMessage)
+		return fmt.Errorf(GetTerminatingNamespacesErrorMessage)
 	}
 
 	// Loop over the namespaces cleaning them
 	for _, namespace := range terminatingNamespaces {
 		err = CleanNamespace(ctx, client, namespace, apiResources)
 		if err != nil {
-			errorMessage := fmt.Sprintf(CleanNamespaceErrorMessage, err)
-			return errors.New(errorMessage)
+			return fmt.Errorf(CleanNamespaceErrorMessage, err)
 		}
 	}
 

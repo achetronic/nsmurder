@@ -1,5 +1,12 @@
 # Nsmurder
 
+![GitHub go.mod Go version (subdirectory of monorepo)](https://img.shields.io/github/go-mod/go-version/achetronic/nsmurder)
+![GitHub](https://img.shields.io/github/license/achetronic/nsmurder)
+
+![YouTube Channel Subscribers](https://img.shields.io/youtube/channel/subscribers/UCeSb3yfsPNNVr13YsYNvCAw?label=achetronic&link=http%3A%2F%2Fyoutube.com%2Fachetronic)
+![GitHub followers](https://img.shields.io/github/followers/achetronic?label=achetronic&link=http%3A%2F%2Fgithub.com%2Fachetronic)
+![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/achetronic?style=flat&logo=twitter&link=https%3A%2F%2Ftwitter.com%2Fachetronic)
+
 ## Description
 
 A CLI to assassinate Kubernetes namespaces following different strategies without mercy
@@ -27,11 +34,11 @@ The process followed to assassinate namespaces is described in the following ste
 
 > There is a time between steps that can be configured using the flag `--duration-between-strategies`
 
-1. Schedule namespace deletion for all the namespaces introduced by using the flags. 
+1. Schedule namespace deletion for all the namespaces introduced by using the flags.
    This step is intended to identify which ones are stuck in `Terminating` state later.
 
 2. Get a list with every resource type that can be created into a namespace.
-   Then loop over namespaces which are in `Terminating` status. 
+   Then loop over namespaces which are in `Terminating` status.
    For each namespace, delete all resources inside to clean it.
 
 3. Loop over namespaces which are still in `Terminating` state and remove their finalizers

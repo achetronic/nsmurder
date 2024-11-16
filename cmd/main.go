@@ -5,9 +5,9 @@ import (
 	"log"
 	"time"
 
-	"nsmurder/flags"      // Configuration flags for the CLI
-	"nsmurder/kubernetes" // Requests against Kubernetes API
-	"nsmurder/manager"    // Requests against Kubernetes API
+	"nsmurder/internal/flags"      // Configuration flags for the CLI
+	"nsmurder/internal/kubernetes" // Requests against Kubernetes API
+	"nsmurder/internal/manager"    // Requests against Kubernetes API
 )
 
 const (
@@ -30,7 +30,6 @@ const (
 
 var inputFlags flags.FlagsSpec
 
-//
 func main() {
 	ctx := context.Background()
 
@@ -56,7 +55,7 @@ func main() {
 
 	err := client.SetClients()
 	if err != nil {
-		log.Printf(KubernetesGetClientErrorMessage, err)
+		log.Printf(KubernetesGetClientErrorMessage, err.Error())
 		return
 	}
 
@@ -64,7 +63,7 @@ func main() {
 	log.Print(ScheduleNamespaceDeletionMessage)
 	err = nsManager.ScheduleNamespaceDeletion(ctx, client)
 	if err != nil {
-		log.Printf(ScheduleNamespaceDeletionErrorMessage, err)
+		log.Printf(ScheduleNamespaceDeletionErrorMessage, err.Error())
 		return
 	}
 
@@ -76,7 +75,7 @@ func main() {
 	log.Print(DeleteOrphanApisMessage)
 	err = kubernetes.DeleteOrphanApiServices(ctx, client.Dynamic)
 	if err != nil {
-		log.Printf(DeleteOrphanApisErrorMessage, err)
+		log.Printf(DeleteOrphanApisErrorMessage, err.Error())
 		return
 	}
 
@@ -88,7 +87,7 @@ func main() {
 	log.Print(CleanResourcesMessage)
 	err = manager.CleanStuckNamespaces(ctx, client)
 	if err != nil {
-		log.Printf(CleanResourcesErrorMessage, err)
+		log.Printf(CleanResourcesErrorMessage, err.Error())
 		return
 	}
 
