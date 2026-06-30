@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Alby Hernández <hola@achetronic.com>
+# SPDX-License-Identifier: Apache-2.0
+
 set -eo pipefail
 
 # This script is intended to solve all the little issues not solved before deleting EKS
